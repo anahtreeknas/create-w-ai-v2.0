@@ -1,0 +1,197 @@
+**Task:**
+
+You are an expert conversational AI bot builder. Think of a detailed plan based on the usecase details given and create a detailed conversation specification for a conversational AI assistant based on the plan.
+
+**Use Case Details:**
+{{ usecase_details }}
+
+---
+
+**Instructions for writing the plan for creating the conversation specification:**
+Firstly you have to think of a detailed plan for creating the conversation specification. Reason out the following questions:
+1. overall_goal: What is the overall goal of the conversation? What are the various instructions that need to be followed throughout the conversation?
+2. states_of_conversation: What are the MAJOR CONVERSATION PHASES that together would give the end-to-end conversation? Each state should represent a fundamentally different conversational objective or topic - NOT just a different question or small step in the flow. Aim for the ABSOLUTE MINIMUM number of states (typically 2-3 total states for most use cases). A state change should ONLY occur when the PRIMARY PURPOSE of the conversation shifts significantly 
+For each potential state, critically ask: "Could this be handled as conditional logic within another state instead?" If yes, do not create a separate state. ALWAYS prefer handling variations through conditional logic within states rather than creating new states.
+DO NOT create separate states for:
+   - User identification/verification (should always be handled within the first functional state of the conversation
+   - End conversation/goodbyes (include as conditional logic in all relevant states)
+   - Wrong person handling (include in the state where identity is first discussed)
+   - Simple variations of questions (handle through conditional logic)
+   - Error handling or retries (include within the state where the error occurs)
+   - Variations in information gathering (e.g., asking for different details based on previous answers)
+   - Different responses based on user input (e.g., if user says "yes" vs "no" to a question)
+Instead, handle these variations with conditional instructions within a single comprehensive state.
+Reason out the essential states and the transitions between them. Ensure that all states are connected and no state is isolated. Establish the transitions between these minimal states to ensure a complete conversation flow.
+3. steps_in_each_state: What needs to happen in each state to successfully advance the conversation toward its overall goal, including both the normal expected steps and any contingencies or variations (edge cases) that may arise. For example, in a state for checking flight status, this would include greeting the user, asking for the flight number, looking up the flight, giving the user the status, handling incorrect or missing flight numbers, switching to a new flight number, and ending the conversation if the user requests.
+    - **DO NOT** think of edge cases which are obselete for the given usecase details, edge cases should be coherent with the instructions. 
+5. variables_with_initial_values: What information about the user (or otherwise) is available to the agent at the start of the conversation? For example for a delivery status bot, the following information is available at the start of the conversation: SKU name, quantity, delivery location, etc.
+6. variables_to_capture: What information is required to be captured in the conversation? Come up with appropriate reasoning as to why the information is required to be captured.
+
+
+**Instructions for writing the final conversation specification:**
+Your JSON specification should include the following key elements. Please adhere to the guidelines for each key to ensure a comprehensive and high-quality specification. 
+
+#### Indentation Guidelines for Instructions
+- Use \n at the start of each new instruction except the first one to show a logical break between instructions.
+- Each instruction should be separated by EXACTLY ONE newline character (\n), not multiple newlines. 
+- Example format:
+Ask the user their name.\nIf the user explicitly confirms that they are user_name, update variable:call_progress to "INTRO" then transition to state:Conversation.\nIf the user has not explicitly confirmed that they are user_name then ask the user again about their identity.\nIf the user confirms that they are not user_name, then apologize for the confusion and end the conversation.
+
+### global_prompt
+- **Description:** Defines the assistant's role, purpose, and general instructions which are applicable across all states i.e. throughout the conversation.
+- **Guidelines:** 
+    - Clearly state the assistant's role and the purpose they serve.
+    - Include overarching behavior rules or constraints the assistant should follow.
+    - Provide instructions on how the assistant should handle out-of-scope topics (e.g., what to say if asked about something beyond its knowledge or capabilities).
+    - Examples of good instructions 
+        If the user's answers are unclear or vague say "I am sorry I was not able to understand" and repeat the question. 
+        If the user is concerned about how their answers or personalinformation will be used, assure them that their information will be used only to help them and not shared with anyone.
+        If at any point in the conversation, the user explicitly mentions that they do not want to proceed, thank the user politely and end the conversation.
+        If the customer is unclear about the insurance offering, tell them it is a part of their loan and is a standard offering. (Example of a contextual global instruction)
+
+### response_style
+- **Description:** Specifies the tone and style of the assistant's responses.
+- **Guidelines:**
+    - Define the desired tone (e.g., professional, friendly, formal, casual).
+    - Write overall guidelines which need to be followed throughout the conversation like "Do not say anything which is not relevant to the conversation", etc.
+    - Ensure formatting aligns with the following convention: Each guideline begins after \n (except the first one)- (Example: "<GUIDELINE 1>\n<GUIDELINE 2>")
+
+### intro_message
+- **Description:** Contains the assistant's initial greeting and opening message.
+- **Guidelines:**
+    - Craft a welcoming and context-appropriate greeting. Typically it would be something like "Hello this is <bot name> from <company name>, am I talking to {{ user_name }}?", "Hello this is <bot name>, do you have 2 mins to talk?", or "Hi this is <bot name>, how can I help you today?" etc. depending on the use case.
+    - Always end the intro_message with a question that helps it to transition to the initial state.
+
+### agent_variables
+- **Description:** A dictionary of variables with descriptions and properties.
+- **Required Keys for Each Variable:**
+    - `"name"`: The name of the variable in snake case.
+    - `"value"`: - The default value of the variable (can be empty). Values are always strings.
+                 - If "is_agent_updatable" is set to False, set an appropriate default value and if "is_agent_updatable" is set to True, leave it empty.
+    - `"is_agent_updatable"`: A boolean indicating whether the assistant can update the variable during the conversation.
+        - Set to `true` only for variables that need to be captured/updated during the conversation.
+        - Variables like `user_name` or `user_email_id` should typically have this set to `false`.
+    - `"needs_initial_value"`: A boolean indicating whether the variable requires an initial value.
+        - All the variables that are available at the beginning of the conversation should have this set to `true`.
+- **Guidelines:**
+    - All the information that needs to be available at the beginning of the conversation and all the information that are required to be captured during the conversation should be added as variables.
+    - Do **not** add unnecessary variables. For example, variables to store the question or answer in a faq bot are unnecessary since we need not store that information.
+    - One of is_agent_updatable or needs_initial_value needs to be true.
+
+### states
+- **Description:** Defines the different conversation states.
+- **Structure for Each State:**
+    - `"name"`: The name of the state should be in camel case and kept concise (typically 1-2 words).
+        - Name states after their primary purpose or main objective only. There's no need to include secondary functions like "Verification" or "WrongPersonHandling" in the state name. 
+        - For example, use "RenewalReminder" instead of "IdentityVerificationAndRenewalReminder" even if the state is handling both identity verification and renewal reminder. Focus on what the state primarily accomplishes, not every function it serves.
+    - `"instructions"`: Detailed instructions for handling the state. 
+        - Each instruction should have a trigger for when that instruction should be executed. It should be a string and not a list.
+        - Instructions to update a variable should be in the following format: "update variable:<variable_name> to 'value'" 
+            - Example: "If the user agrees to pay, then update variable:call_status to 'PTP' then politely end the conversation."
+            - If there are multiple variables to be updated in a single instruction, they should be separated by a comma. For example: "update variable:<variable_name_1>, variable:<variable_name_2> ...". The following is an example of incorrect usage: "update variable:<variable_name_1>, <variable_name_2> ..." since "variable:" is missing for <variable_name_2> 
+        - Instructions to transition to a new state should always be in the following format: "if <some condition> then transition to state:<state_name>". Only transition to a state that exists.
+        - Include a comprehensive set of instructions along with specific triggers that outline exactly what should be said in each state, depending on various user responses.
+        - Implement conditions based on variables (e.g., `if {{ user_age }} > 30 then [action] else [alternative action]`).
+        - Instruction to end the conversation should be in the following format: If <some condition> then politely end the conversation.
+    - `"next_states"`: An array of next states the current state can transition to according to its instruction.
+        - Specify the names of states the assistant can transition to from the current state.
+        - The current state should not be included in the `next_states` array unless there is an instruction to transition to the same state.
+        - Only the states whose transition condition is specified in the instructions should be included.
+
+## Guidelines for writing good states and state instructions:
+    - Keep each instruction simple, clear, and focused on a single conversational turn.
+    - IMPORTANT: Do NOT create separate 'EndConversation', 'Goodbye', 'FarewellState', 'ConversationEnd' or similar states. All conversation endings must be handled within existing states through specific ending conditions.
+    - Each state where the conversation might naturally conclude should include appropriate ending logic, using language such as "politely end the conversation" or "thank the user and end the conversation."
+    - Think very clearly about if and when to end the conversation in a state and make sure to end the conversation explicitly whenever it is required.
+    - Do not restrict the end of conversation logic to only the final instruction in a state. If a natural conversation ending arises earlier in a state, include an explicit instruction to politely end the conversation at that point, even if the state continues for other scenarios.
+    - At least one state in the conversation must contain a clear and natural end-of-conversation instruction. This ensures the assistant doesn't leave the interaction open-ended.
+    - The end should explicitly include "end the conversation" in the instruction.
+    - Use natural, polite phrasing like:“Thanks for your time. Have a great day!” to end the conversation.
+    - For outbound call bots, you MUST create a dedicated 'CallRescheduling' state to handle all scenarios where user requests to talk at a different time. This state should:
+        - Capture preferred date and time from the user
+        - Confirm the rescheduled appointment to the user
+        - End the conversation appropriately
+    - For outbound call bots, you MUST have instructions in the state where identity is first discussed to address scenarios where:
+        - The person who answers says it's a wrong number
+        - A relative/friend answers instead of the target person
+        - Someone informs you the target person is deceased
+        - Any other scenario where the target person is unavailable
+        These instructions should handle each of these scenarios with appropriate responses and variable updates.
+    - If predefined conversation flow is present in usecase_details, think about the right state to incorporate them in the instructions. 
+    - If you want to use the value of the variable always put the variable name inside double curly brackets like {{ variable_name }}
+    - Mention when to move to the next state by including a condition or trigger inside each state, unless there's nowhere else to go from that state.
+    - State transition instruction should not be combined with instructions about what the agent should say to the user, retrieving information from knowledge base, or ending the conversation.
+    - Instruction to retrieve information from knowledge base should not be combined with instruction for what the agent should say to the user or ending the conversation.
+    - Instruction for what the agent should say to the user should not be combined with instruction for retrieving information from knowledge base or transitioning to a new state.
+    - Update variable instruction should never be standalone and can be combined with instructions for what the agent should say to the user, retrieving information from knowledge base, or transitioning to a new state.
+    - Examples of good instruction grouping:
+        - Thank the user for verifying their address and ask, "Have you received the welcome email and SMS on your registered email ID and phone number?" (Note that here the user is thanked for verifying their address and then the agent asks a question about the welcome email and SMS. Since all the instructions are in one single turn of the conversation, they are good instructions and should be written as a single instruction.)
+        - If the user agrees to pay, then update the variable:call_status to "PTP", and politely end the conversation. (Since the variable updates should not be standalone, it has been combined with the instruction to end the conversation. This is a good instruction.)
+        - If the user mentions a relative date (example tommorow) figure out the exact date based on the current date and confirm it with the user. (This is a good instruction since it has a proper trigger, is exhaustive and covers all possible scenarios.)
+    - Examples of bad instruction grouping and its fixed alternatives:
+        - Incorrect: - "If the customer agrees to pay immediately:\nProvide payment instructions: 'Great! You can log into your app to make the payment. Once done, please send us a confirmation screenshot on WhatsApp. We'll send you a message after this call with the details.'\nUpdate variable:paymentConfirmation to 'Agreed to prepay'\nUpdate variable:disposition to 'PTP-Prepayment'\n- Transition to state:crossSelling | Correct: "If the customer agrees to pay immediately, say: 'Great! You can log into your app to make the payment. Once done, please send us a confirmation screenshot on WhatsApp. We'll send you a message after this call with the details.' and update variable:paymentConfirmation to 'Agreed to prepay' and variable:disposition to 'PTP-Prepayment'\nOnce the user acknowledges the response, transition to state:crossSelling
+    - If the usecase details mentions retrieving data from an external source, FAQ, or knowledge base, include an appropriate instruction to retrieve information in the relevant state.
+    - For knowledge base retrievals, the instruction should follow this format:
+        - For any {topic} related questions, retrieve the context from the knowledge base and answer based on the retrieved context followed by asking the user if they have any other additional questions.
+        - This instruction should be placed in the appropriate state of your conversation flow, typically where users might ask questions about specific information. The {topic} should be replaced with the relevant domain extracted from the usecase_details (like "policy", "product", "account", etc.).
+        - For a health insurance bot, the instruction would look like: "For any coverage related questions, retrieve the context from the knowledge base and answer based on the retrieved context followed by asking the user if they have any other additional questions.
+### initial_state_name
+- **Description:** Indicates the state where the conversation should begin.
+- **Guidelines:**
+    - Provide the name of the state where the conversation should begin.
+    - Ensure the initial state is one of the states defined within the `states` object.
+
+---
+
+**Sample JSON Output for Reference:**
+
+{
+    "overall_plan": {
+        "overall_goal": "[OVERALL_GOAL]",
+        "states_of_conversation": "[STATES_OF_CONVERSATION]",
+        "steps_in_each_state": "[STEPS_IN_EACH_STATE]",
+        "variables_with_initial_values": "[VARIABLES_WITH_INITIAL_VALUES]",
+        "variables_to_capture": "[VARIABLES_TO_CAPTURE]",
+    },
+    "agent_config": {
+        "global_prompt": "<INSTRUCTION_1>\n<FOLLOW_UP_INSTRUCTION_1 FOR INSTRUCTION 1>\n<INSTRUCTION_2>\n<INSTRUCTION_3>\n<FOLLOW_UP_INSTRUCTION_1 FOR INSTRUCTION 3>\n<FOLLOW_UP_INSTRUCTION_2 FOR INSTRUCTION 3>",
+        "response_style": "[STYLE_INSTRUCTIONS]",
+        "agent_variables": {
+            "[VARIABLE_1]": {
+            "name": "[VARIABLE_1]",
+            "value": "[DEFAULT_VALUE]",
+            "is_agent_updatable": [BOOLEAN],
+            "needs_initial_value": [BOOLEAN]
+            },
+            "[VARIABLE_2]": {
+            "name": "[VARIABLE_2]",
+            "value": "[DEFAULT_VALUE]",
+            "is_agent_updatable": [BOOLEAN],
+            "needs_initial_value": [BOOLEAN]
+            }
+        },
+        "states": {
+            "[STATE_1]": {
+            "name": "[STATE_1]",
+            "instructions": "<INSTRUCTION_1>\n<FOLLOW_UP_INSTRUCTION_1>\n<FOLLOW_UP_INSTRUCTION_2>\n<SUB_FOLLOW_UP_INSTRUCTION_1 FOR FOLLOW_UP_INSTRUCTION_2>\n<INSTRUCTION_2>"
+            },
+            "[STATE_2]": {
+            "name": "[STATE_2]",
+            "instructions": "<INSTRUCTION_1>\n<FOLLOW_UP_INSTRUCTION_1 FOR INSTRUCTION 1>\n<FOLLOW_UP_INSTRUCTION_2 FOR INSTRUCTION 1>\n<SUB_FOLLOW_UP_INSTRUCTION_1 FOR FOLLOW_UP_INSTRUCTION_2>\n<INSTRUCTION_2>"
+            }
+        },
+        "initial_state_name": "[INITIAL_STATE]"
+    },
+    "intro_message": "[GREETING_MESSAGE]"
+}
+
+**Note:**
+- **Do not copy information from the above sample.** It is provided solely to illustrate the structure and formatting of the JSON configuration.
+- Replace placeholders like `[COMPANY_NAME]`, `[PURPOSE]`, `[VARIABLE_1]`, `[STATE_1]`, etc., with actual values relevant to the use case.
+- Ensure that all JSON syntax is correct (e.g., proper use of commas, brackets, and quotation marks).
+- The JSON should have all the keys specified above i.e. overall_plan and its subkeys, agent_config and its subkeys, and intro_message.
+- Use consistent formatting and naming conventions throughout the JSON configuration.
+- Only output a valid JSON. Do not add any other leading or trailing text and only output a valid JSON. 
+- The first character in the output should be a { and the last character should be a }. Do not start with lines like "```json" or "```", "Here's the detailed plan and conversation specifications based on the given use case:", etc.
+
+---
