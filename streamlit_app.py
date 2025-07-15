@@ -6,8 +6,12 @@ from dotenv import load_dotenv
 from claude_client import ClaudeClient
 from utils import create_app, update_app
 import re
+import os
 
 load_dotenv()
+# Load GCP service-account creds from Streamlit secrets, if present
+if "gcp_service_account" in st.secrets and not os.getenv("VERTEX_CREDENTIALS"):
+    os.environ["VERTEX_CREDENTIALS"] = json.dumps(st.secrets["gcp_service_account"])
 
 st.set_page_config(
     page_title="Create with AI v2.0",
