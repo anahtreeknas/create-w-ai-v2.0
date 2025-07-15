@@ -15,15 +15,6 @@ if "gcp_service_account" in st.secrets and not os.getenv("VERTEX_CREDENTIALS"):
     os.environ["VERTEX_CREDENTIALS"] = json.dumps(st.secrets["gcp_service_account"])
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json.dumps(st.secrets["gcp_service_account"])
     
-# try:
-#     if not ensure_authentication():
-#         st.error("Failed to authenticate with GCP. Please check your credentials.")
-#         st.info("Check the logs above for detailed error information.")
-#         st.stop()
-# except Exception as e:
-#     st.error(f"Error during authentication setup: {e}")
-#     st.info("Please check your GCP service account configuration in Streamlit secrets.")
-#     st.stop()
 
 st.set_page_config(
     page_title="Create with AI v2.0",
