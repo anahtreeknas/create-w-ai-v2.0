@@ -95,9 +95,15 @@ extra-index-url = https://oauth2accesstoken:{token}@europe-west4-python.pkg.dev/
 def install_private_packages():
     """Install private packages using pip with authentication."""
     
-    # Set up authentication
-    if not configure_pip_authentication():
+    # Get authentication token
+    st.write("Getting GCP authentication token...")
+    token = setup_gcp_authentication()
+    
+    if not token:
+        st.error("✗ Failed to get authentication token")
         return False
+    
+    st.write("✓ Authentication token obtained")
     
     # Private packages to install
     private_packages = [
@@ -109,15 +115,42 @@ def install_private_packages():
     # Install each private package
     for package in private_packages:
         try:
-            subprocess.run([
-                sys.executable, "-m", "pip", "install", package
-            ], check=True, capture_output=True)
+            st.write(f"Installing {package}...")
             
-            print(f"✓ Successfully installed {package}")
+            # Install with authentication
+            result = subprocess.run([
+                sys.executable, "-m", "pip", "install", 
+                "--index-url", "https://pypi.org/simple",
+                "--extra-index-url", f"https://oauth2accesstoken:{token}@europe-west4-python.pkg.dev/gpu-reservation-sarvam/sarvam-python-ci/simple/",
+                "--trusted-host", "europe-west4-python.pkg.dev",
+                package
+            ], check=True, capture_output=True, text=True)
+            
+            st.write(f"✓ Successfully installed {package}")
             
         except subprocess.CalledProcessError as e:
-            print(f"✗ Failed to install {package}: {e}")
-            return False
+            st.error(f"✗ Failed to install {package}")
+            st.error(f"Error: {e}")
+            with st.expander("Error details"):
+                st.text(f"stdout: {e.stdout}")
+                st.text(f"stderr: {e.stderr}")
+            
+            # Try alternative method
+            st.write(f"Trying alternative installation method for {package}...")
+            try:
+                result = subprocess.run([
+                    sys.executable, "-m", "pip", "install", 
+                    f"--index-url=https://oauth2accesstoken:{token}@europe-west4-python.pkg.dev/gpu-reservation-sarvam/sarvam-python-ci/simple/",
+                    "--trusted-host", "europe-west4-python.pkg.dev",
+                    package
+                ], check=True, capture_output=True, text=True)
+                st.write(f"✓ Successfully installed {package} (alternative method)")
+            except subprocess.CalledProcessError as e2:
+                st.error(f"✗ Alternative method also failed for {package}")
+                with st.expander("Alternative method error details"):
+                    st.text(f"stdout: {e2.stdout}")
+                    st.text(f"stderr: {e2.stderr}")
+                return False
     
     return True
 
@@ -139,19 +172,38 @@ def ensure_authentication():
     
     # Check if packages are already available
     if check_private_packages():
+        st.success("✓ Private packages already available")
         return True
     
     # Install packages if not available
-    print("Setting up authentication for private packages...")
+    st.info("Setting up authentication for private packages...")
     
-    if install_private_packages():
-        print("✓ Private packages installed successfully!")
-        return True
+    # Show debug info
+    st.write(f"Streamlit secrets available: {hasattr(st, 'secrets')}")
+    if hasattr(st, 'secrets'):
+        st.write(f"GCP service account in secrets: {'gcp_service_account' in st.secrets}")
     else:
-        print("✗ Failed to install private packages")
+        st.error("Streamlit secrets not available!")
         return False
+    
+    if "gcp_service_account" not in st.secrets:
+        st.error("GCP service account not found in Streamlit secrets!")
+        st.info("Please add your GCP service account JSON to Streamlit secrets under 'gcp_service_account'")
+        return False
+    
+    # Create a progress indicator
+    with st.spinner("Installing private packages..."):
+        if install_private_packages():
+            st.success("✓ Private packages installed successfully!")
+            st.info("Please wait while the app restarts to use the new packages...")
+            st.rerun()  # Restart the app to import new packages
+            return True
+        else:
+            st.error("✗ Failed to install private packages")
+            return False
 
 
 # Auto-setup authentication when module is imported
 if __name__ != "__main__":
-    ensure_authentication() 
+    # Don't auto-install on import, let the app handle it explicitly
+    pass 

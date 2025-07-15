@@ -14,8 +14,14 @@ load_dotenv()
 if "gcp_service_account" in st.secrets and not os.getenv("VERTEX_CREDENTIALS"):
     os.environ["VERTEX_CREDENTIALS"] = json.dumps(st.secrets["gcp_service_account"])
 
-if not ensure_authentication():
-    st.error("Failed to authenticate with GCP. Please check your credentials.")
+try:
+    if not ensure_authentication():
+        st.error("Failed to authenticate with GCP. Please check your credentials.")
+        st.info("Check the logs above for detailed error information.")
+        st.stop()
+except Exception as e:
+    st.error(f"Error during authentication setup: {e}")
+    st.info("Please check your GCP service account configuration in Streamlit secrets.")
     st.stop()
 
 st.set_page_config(
